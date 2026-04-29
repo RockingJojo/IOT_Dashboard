@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ICT Department — Research Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0a0c12;
+    --surface: #12151f;
+    --surface2: #1a1e2e;
+    --border: rgba(255,255,255,0.06);
+    --accent: #4f8ef7;
+    --accent2: #7c5cf7;
+    --accent3: #f75c7c;
+    --accent4: #3ddbbe;
+    --accent5: #f7c35c;
+    --text: #e8eaf2;
+    --muted: #7a7f9a;
+    --card-glow: rgba(79, 142, 247, 0.08);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Background grid ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(79,142,247,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(79,142,247,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none; z-index: 0;
+  }
+
+  .wrapper { position: relative; z-index: 1; }
+
+  /* ── Header ── */
+  header {
+    padding: 48px 60px 36px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 24px; flex-wrap: wrap;
+    background: linear-gradient(to bottom, rgba(79,142,247,0.04), transparent);
+  }
+  .header-left {}
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(79,142,247,0.12); border: 1px solid rgba(79,142,247,0.25);
+    color: var(--accent); border-radius: 100px; padding: 5px 14px;
+    font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .badge span { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(1.5)} }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(28px, 4vw, 48px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+  }
+  h1 span {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .subtitle { color: var(--muted); font-size: 14px; margin-top: 8px; font-weight: 300; }
+  .header-stats { display: flex; gap: 32px; flex-wrap: wrap; }
+  .header-stat { text-align: right; }
+  .header-stat .val { font-family:'Syne',sans-serif; font-size: 32px; font-weight: 700; line-height:1; }
+  .header-stat .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px; }
+  .v1 { color: var(--accent); }
+  .v2 { color: var(--accent4); }
+  .v3 { color: var(--accent5); }
+
+  /* ── Nav ── */
+  nav {
+    padding: 0 60px;
+    display: flex; gap: 4px;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+  }
+  .tab {
+    padding: 14px 20px; font-size: 13px; font-weight: 500;
+    color: var(--muted); cursor: pointer; border: none; background: none;
+    border-bottom: 2px solid transparent; white-space: nowrap;
+    transition: all .2s; margin-bottom: -1px;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* ── Main ── */
+  main { padding: 40px 60px; display: flex; flex-direction: column; gap: 32px; }
+
+  .page { display: none; flex-direction: column; gap: 32px; }
+  .page.active { display: flex; }
+
+  /* ── KPI row ── */
+  .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; }
+  .kpi {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px; padding: 24px;
+    position: relative; overflow: hidden;
+    transition: transform .2s, border-color .2s;
+  }
+  .kpi:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.12); }
+  .kpi::after {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  }
+  .kpi.a1::after { background: linear-gradient(90deg, var(--accent), transparent); }
+  .kpi.a2::after { background: linear-gradient(90deg, var(--accent4), transparent); }
+  .kpi.a3::after { background: linear-gradient(90deg, var(--accent5), transparent); }
+  .kpi.a4::after { background: linear-gradient(90deg, var(--accent2), transparent); }
+  .kpi.a5::after { background: linear-gradient(90deg, var(--accent3), transparent); }
+  .kpi-val { font-family: 'Syne', sans-serif; font-size: 36px; font-weight: 800; line-height: 1; }
+  .kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 8px; }
+  .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  /* ── Grid layouts ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .col-span-2 { grid-column: span 2; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px; padding: 28px;
+    position: relative; overflow: hidden;
+  }
+  .card-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted); margin-bottom: 24px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-title::before {
+    content: ''; width: 4px; height: 14px; border-radius: 2px;
+    background: var(--accent);
+  }
+  .chart-wrap { position: relative; }
+
+  /* ── Bar chart (CSS) ── */
+  .bar-chart { display: flex; flex-direction: column; gap: 10px; }
+  .bar-row { display: flex; align-items: center; gap: 12px; }
+  .bar-label { font-size: 12px; color: var(--muted); min-width: 110px; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-track { flex: 1; background: var(--surface2); border-radius: 4px; height: 8px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; transition: width 1s cubic-bezier(.4,0,.2,1); }
+  .bar-num { font-size: 12px; color: var(--text); font-weight: 500; min-width: 28px; }
+
+  /* ── Donut legend ── */
+  .donut-wrap { display: flex; align-items: center; gap: 32px; }
+  .donut-canvas { width: 180px !important; height: 180px !important; flex-shrink: 0; }
+  .donut-legend { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+  .legend-item { display: flex; align-items: center; gap: 10px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .legend-name { font-size: 13px; color: var(--text); flex: 1; }
+  .legend-val { font-size: 13px; font-weight: 600; }
+  .legend-pct { font-size: 11px; color: var(--muted); }
+
+  /* ── Table ── */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--muted);
+    padding: 0 12px 12px; text-align: left; border-bottom: 1px solid var(--border);
+  }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background .15s; }
+  tbody tr:hover { background: rgba(255,255,255,0.02); }
+  tbody tr:last-child { border-bottom: none; }
+  tbody td { padding: 12px; font-size: 13px; vertical-align: middle; }
+  td.rank { color: var(--muted); font-size: 11px; font-weight: 600; text-align: center; width: 36px; }
+  td.name { font-weight: 500; }
+  td.count { font-family: 'Syne', sans-serif; font-weight: 700; }
+
+  /* ── Quartile badges ── */
+  .q-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 3px 9px; border-radius: 100px; font-size: 11px; font-weight: 600;
+  }
+  .q1 { background: rgba(61,219,190,.15); color: var(--accent4); border: 1px solid rgba(61,219,190,.25); }
+  .q2 { background: rgba(79,142,247,.15); color: var(--accent); border: 1px solid rgba(79,142,247,.25); }
+  .q3 { background: rgba(247,195,92,.15); color: var(--accent5); border: 1px solid rgba(247,195,92,.25); }
+  .q4 { background: rgba(247,92,124,.15); color: var(--accent3); border: 1px solid rgba(247,92,124,.25); }
+
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 500;
+  }
+  .s-pub { background: rgba(61,219,190,.1); color: var(--accent4); }
+  .s-acc { background: rgba(79,142,247,.1); color: var(--accent); }
+  .s-sub { background: rgba(247,195,92,.1); color: var(--accent5); }
+
+  /* ── Faculty page ── */
+  .faculty-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  .faculty-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px; padding: 20px;
+    cursor: pointer; transition: all .2s;
+  }
+  .faculty-card:hover { transform: translateY(-3px); border-color: rgba(79,142,247,.35); box-shadow: 0 8px 32px rgba(79,142,247,0.12); }
+  .fc-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 15px; margin-bottom: 6px; }
+  .fc-count { font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+  .fc-bars { display: flex; flex-direction: column; gap: 6px; }
+  .fc-bar-row { display: flex; align-items: center; gap: 8px; }
+  .fc-bar-label { font-size: 10px; color: var(--muted); width: 64px; }
+  .fc-bar-track { flex: 1; background: var(--surface2); border-radius: 3px; height: 5px; overflow: hidden; }
+  .fc-bar-fill { height: 100%; border-radius: 3px; }
+  .fc-bar-num { font-size: 10px; font-weight: 600; color: var(--text); min-width: 20px; text-align: right; }
+
+  /* ── Year trend (line chart) ── */
+  .canvas-full { width: 100% !important; height: 260px !important; }
+
+  /* ── Heatmap ── */
+  .heat-table { border-collapse: separate; border-spacing: 3px; width: 100%; }
+  .heat-table th { font-size: 10px; color: var(--muted); font-weight: 500; padding: 3px 6px; text-align: center; }
+  .heat-cell {
+    width: 28px; height: 28px; border-radius: 5px;
+    font-size: 10px; font-weight: 600; text-align: center;
+    vertical-align: middle; cursor: default; transition: transform .15s;
+  }
+  .heat-cell:hover { transform: scale(1.15); }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; z-index: 1000;
+    background: rgba(0,0,0,.75); backdrop-filter: blur(8px);
+    justify-content: center; align-items: center; padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 24px; padding: 36px; max-width: 700px; width: 100%;
+    max-height: 85vh; overflow-y: auto; position: relative;
+  }
+  .modal-close {
+    position: absolute; top: 20px; right: 20px;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--muted); cursor: pointer; border-radius: 10px;
+    width: 36px; height: 36px; font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .2s;
+  }
+  .modal-close:hover { color: var(--text); border-color: rgba(255,255,255,.2); }
+  .modal-name { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+  .modal-sub { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .pub-list { display: flex; flex-direction: column; gap: 10px; }
+  .pub-item {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 16px;
+  }
+  .pub-title { font-size: 13px; font-weight: 500; line-height: 1.5; margin-bottom: 8px; }
+  .pub-meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .pub-year { font-size: 11px; color: var(--muted); }
+  .cat-badge {
+    font-size: 10px; padding: 2px 8px; border-radius: 100px; font-weight: 600;
+  }
+  .cat-j { background: rgba(79,142,247,.15); color: var(--accent); }
+  .cat-c { background: rgba(124,92,247,.15); color: var(--accent2); }
+  .cat-b { background: rgba(247,195,92,.15); color: var(--accent5); }
+
+  /* ── Footer ── */
+  footer {
+    padding: 24px 60px; border-top: 1px solid var(--border);
+    display: flex; justify-content: space-between; align-items: center;
+    color: var(--muted); font-size: 12px;
+  }
+
+  @media (max-width: 900px) {
+    header, nav, main, footer { padding-left: 20px; padding-right: 20px; }
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .col-span-2 { grid-column: span 1; }
+    .donut-wrap { flex-direction: column; }
+    .header-stats { gap: 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+<!-- HEADER -->
+<header>
+  <div class="header-left">
+    <div class="badge"><span></span>Live Research Analytics</div>
+    <h1>ICT Department<br><span>Research Dashboard</span></h1>
+    <p class="subtitle">Pandit Deendayal Energy University · Academic Publications Overview</p>
+  </div>
+  <div class="header-stats">
+    <div class="header-stat"><div class="val v1">226</div><div class="lbl">Total Publications</div></div>
+    <div class="header-stat"><div class="val v2">20</div><div class="lbl">Faculty Members</div></div>
+    <div class="header-stat"><div class="val v3">60</div><div class="lbl">Q1 + Q2 Papers</div></div>
+  </div>
+</header>
+
+<!-- NAV -->
+<nav>
+  <button class="tab active" onclick="showPage('overview')">Overview</button>
+  <button class="tab" onclick="showPage('trends')">Yearly Trends</button>
+  <button class="tab" onclick="showPage('faculty')">Faculty</button>
+  <button class="tab" onclick="showPage('publications')">All Publications</button>
+</nav>
+
+<main>
+
+<!-- ========== PAGE: OVERVIEW ========== -->
+<div class="page active" id="page-overview">
+
+  <!-- KPIs -->
+  <div class="kpi-row">
+    <div class="kpi a1">
+      <div class="kpi-val" style="color:var(--accent)">226</div>
+      <div class="kpi-label">Total Publications</div>
+      <div class="kpi-sub">All categories combined</div>
+    </div>
+    <div class="kpi a2">
+      <div class="kpi-val" style="color:var(--accent4)">68</div>
+      <div class="kpi-label">Journal Articles</div>
+      <div class="kpi-sub">Peer-reviewed journals</div>
+    </div>
+    <div class="kpi a4">
+      <div class="kpi-val" style="color:var(--accent2)">147</div>
+      <div class="kpi-label">Conferences</div>
+      <div class="kpi-sub">IEEE & international</div>
+    </div>
+    <div class="kpi a3">
+      <div class="kpi-val" style="color:var(--accent5)">11</div>
+      <div class="kpi-label">Book Chapters</div>
+      <div class="kpi-sub">Published books</div>
+    </div>
+    <div class="kpi a5">
+      <div class="kpi-val" style="color:var(--accent3)">26</div>
+      <div class="kpi-label">Q1 Papers</div>
+      <div class="kpi-sub">Top quartile journals</div>
+    </div>
+  </div>
+
+  <!-- Row 1 -->
+  <div class="grid-2">
+    <!-- Publication types donut -->
+    <div class="card">
+      <div class="card-title">Publication Category Breakdown</div>
+      <div class="donut-wrap">
+        <canvas class="donut-canvas" id="catChart"></canvas>
+        <div class="donut-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#4f8ef7"></div><div class="legend-name">Conference</div><div class="legend-val" style="color:#4f8ef7">147</div><div class="legend-pct">65%</div></div>
+          <div class="legend-item"><div class="legend-dot" style="background:#3ddbbe"></div><div class="legend-name">Journal</div><div class="legend-val" style="color:#3ddbbe">68</div><div class="legend-pct">30%</div></div>
+          <div class="legend-item"><div class="legend-dot" style="background:#f7c35c"></div><div class="legend-name">Book Chapter</div><div class="legend-val" style="color:#f7c35c">11</div><div class="legend-pct">5%</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status donut -->
+    <div class="card">
+      <div class="card-title">Publication Status</div>
+      <div class="donut-wrap">
+        <canvas class="donut-canvas" id="statusChart"></canvas>
+        <div class="donut-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#3ddbbe"></div><div class="legend-name">Published</div><div class="legend-val" style="color:#3ddbbe">179</div><div class="legend-pct">79%</div></div>
+          <div class="legend-item"><div class="legend-dot" style="background:#4f8ef7"></div><div class="legend-name">Accepted</div><div class="legend-val" style="color:#4f8ef7">18</div><div class="legend-pct">8%</div></div>
+          <div class="legend-item"><div class="legend-dot" style="background:#f7c35c"></div><div class="legend-name">Submitted</div><div class="legend-val" style="color:#f7c35c">7</div><div class="legend-pct">3%</div></div>
+          <div class="legend-item"><div class="legend-dot" style="background:#555"></div><div class="legend-name">Unknown</div><div class="legend-val" style="color:#777">22</div><div class="legend-pct">10%</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 2 -->
+  <div class="grid-2">
+    <!-- Top faculty bar -->
+    <div class="card">
+      <div class="card-title">Top Contributors</div>
+      <div class="bar-chart" id="topFacultyBar"></div>
+    </div>
+
+    <!-- Quartile donut -->
+    <div class="card">
+      <div class="card-title">Quartile Distribution (Journals)</div>
+      <div class="donut-wrap">
+        <canvas class="donut-canvas" id="quartileChart"></canvas>
+        <div class="donut-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#3ddbbe"></div><div class="legend-name">Q1</div><div class="legend-val" style="color:#3ddbbe">26</div><div class="legend-pct">43%</div></div>
+          <div class="legend-item"><div class="legend-dot" style="background:#4f8ef7"></div><div class="legend-name">Q2</div><div class="legend-val" style="color:#4f8ef7">18</div><div class="legend-pct">30%</div></div>
+          <div class="legend-item"><div class="legend-dot" style="background:#f7c35c"></div><div class="legend-name">Q3</div><div class="legend-val" style="color:#f7c35c">12</div><div class="legend-pct">20%</div></div>
+          <div class="legend-item"><div class="legend-dot" style="background:#f75c7c"></div><div class="legend-name">Q4</div><div class="legend-val" style="color:#f75c7c">4</div><div class="legend-pct">7%</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Full width rankings -->
+  <div class="card">
+    <div class="card-title">Faculty Publication Rankings</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Faculty Name</th>
+            <th>Total</th>
+            <th>Journals</th>
+            <th>Conferences</th>
+            <th>Book Chapters</th>
+            <th>Q1/Q2 Papers</th>
+          </tr>
+        </thead>
+        <tbody id="rankingTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== PAGE: TRENDS ========== -->
+<div class="page" id="page-trends">
+
+  <!-- Year over year line -->
+  <div class="card">
+    <div class="card-title">Year-over-Year Publication Output</div>
+    <div class="chart-wrap">
+      <canvas class="canvas-full" id="yearChart"></canvas>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <!-- Category trend stacked bar -->
+    <div class="card col-span-2">
+      <div class="card-title">Category Mix by Year</div>
+      <div class="chart-wrap">
+        <canvas style="height:240px!important; width:100%!important" id="stackedChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Year breakdown table -->
+  <div class="card">
+    <div class="card-title">Yearly Summary Table</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Year</th><th>Total</th><th>Journals</th><th>Conferences</th><th>Book Chapters</th><th>Growth</th></tr>
+        </thead>
+        <tbody id="yearTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- ========== PAGE: FACULTY ========== -->
+<div class="page" id="page-faculty">
+  <div class="faculty-grid" id="facultyGrid"></div>
+</div>
+
+<!-- ========== PAGE: PUBLICATIONS ========== -->
+<div class="page" id="page-publications">
+
+  <!-- Filters -->
+  <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+    <select id="filterFaculty" onchange="renderPubTable()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:10px;font-size:13px;cursor:pointer;">
+      <option value="">All Faculty</option>
+    </select>
+    <select id="filterYear" onchange="renderPubTable()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:10px;font-size:13px;cursor:pointer;">
+      <option value="">All Years</option>
+    </select>
+    <select id="filterCat" onchange="renderPubTable()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:10px;font-size:13px;cursor:pointer;">
+      <option value="">All Categories</option>
+      <option>Journal</option>
+      <option>Conference</option>
+      <option>Book Chapter</option>
+    </select>
+    <select id="filterQ" onchange="renderPubTable()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 14px;border-radius:10px;font-size:13px;cursor:pointer;">
+      <option value="">All Quartiles</option>
+      <option>Q1</option><option>Q2</option><option>Q3</option><option>Q4</option>
+    </select>
+    <span id="pubCount" style="color:var(--muted);font-size:13px;margin-left:auto"></span>
+  </div>
+
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Faculty</th>
+            <th>Year</th>
+            <th>Category</th>
+            <th>Status</th>
+            <th>Quartile</th>
+          </tr>
+        </thead>
+        <tbody id="pubTable"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+</main>
+
+<footer>
+  <span>ICT Department · Research Dashboard</span>
+  <span>Data as submitted by faculty — 2025 Academic Year</span>
+</footer>
+
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <div class="modal-name" id="modal-name"></div>
+    <div class="modal-sub" id="modal-sub"></div>
+    <div class="pub-list" id="modal-pubs"></div>
+  </div>
+</div>
+
+<script>
+// ── DATA ──
+const DATA = {"Abhishek Joshi": [{"year": 2025, "category": "Journal", "title": "Employing machine learning for hyperspectral image classification: traditional approaches and modern", "status": "Published", "quartile": "Q1"}, {"year": 2025, "category": "Journal", "title": "Predictive and Energy Aware Clustering in FANETs Using Kalman Filter-Based Mobility Estimation", "status": "Submitted", "quartile": "Q2"}, {"year": 2025, "category": "Journal", "title": "Hierarchical Road Surface Classification using Fine-tuned CNNs on Ground Imagery", "status": "Submitted", "quartile": "Q2"}, {"year": 2025, "category": "Conference", "title": "Forest Fire Monitoring Using TinyML-Enabled Wireless Sensor Networks", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Hardware Implementation of FANET Using FANS", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "TinyML-Enabled Predictive Maintenance for Urban Infrastructure using Cluster-Based Wireless Sensor", "status": "Accepted", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "TinyML-Driven Edge Computing for Landslide Prediction and Monitoring", "status": "Accepted", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "TinyML-Based Framework for Indoor Plant Classification and Microclimate Monitoring", "status": "Accepted", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "LoRa-Based Smart Agriculture System for Precision Farming with AI-Driven Soil Monitoring", "status": "Accepted", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "IoT based wearable device for assisting Autism Spectrum Disorder (ASD) patients", "status": "Accepted", "quartile": "N/A"}], "Abhishek Kumar": [{"year": 2025, "category": "Journal", "title": "Differential Privacy Enabled Federated LSTM Model for Decentralized Active User Detection in 6G Ce", "status": "Published", "quartile": "Q1"}, {"year": 2025, "category": "Conference", "title": "Federated Learning with LSTM Based Active User Detection for CF-mMIMO Network for 6G Communicati", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Integrated NOMA and mmWave-Assisted SWIPT for Full-Duplex Cooperative V2V System", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Performance Analysis of an Optimum Multi-User MIMO Enabled Wi-Fi Network for Smart University Camp", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "NOMA Pilot Based Channel Estimation for 6G CF\u2013mMIMO Communication System", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "Performance Analysis of Single Side Band Continuous Phase Modulation in Rayleigh Fading Channel", "status": "Published", "quartile": "N/A"}], "Anand Singh": [{"year": 2024, "category": "Journal", "title": "Performance analysis of OIRS-aided indoor VLC systems under dynamic human blockages and random UE", "status": "Published", "quartile": "Q1"}, {"year": 2024, "category": "Journal", "title": "Characterization of Dynamic Blockages for VLC-Enabled Indoor Industrial Networks", "status": "Published", "quartile": "Q1"}, {"year": 2024, "category": "Journal", "title": "Energy Efficient OIRS-aided VLC Systems Employing ML-based User Orientation and Obstacle Awareness", "status": "Published", "quartile": "Q1"}, {"year": 2024, "category": "Journal", "title": "On the Optimal Evaluation of the Irradiance Angle and the Orientation in OIRS-Aided Vehicle Commun", "status": "Published", "quartile": "Q1"}, {"year": 2025, "category": "Journal", "title": "Optimal UAV deployment and LED power allocation strategies for VLC-enabled indoor communication ne", "status": "Published", "quartile": "Q1"}, {"year": 2025, "category": "Conference", "title": "Enhancing GNSS Resiliency Against Spoofing and Jamming Employing Deep Neural Networks", "status": "Accepted", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "IRS-assisted VLC versus mmWave Indoor Communication Systems: Performance Comparison and Trade-offs", "status": "Accepted", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Dynamic Intelligent Surface-Assisted VLC for Autonomous Vehicle Coordination at Intersections", "status": "Accepted", "quartile": "N/A"}], "Arpan Desai": [{"year": 2025, "category": "Journal", "title": "Dual-Band Reflective Metasurface Integrated Circularly Polarized Antenna for Sub-6 GHz 5G N77 and", "status": "Published", "quartile": "Q1"}, {"year": 2025, "category": "Journal", "title": "A Compact High-Selectivity Planar Endfire Filtenna for mm-wave Applications", "status": "Published", "quartile": "Q2"}, {"year": 2025, "category": "Journal", "title": "Design Innovative High-Gain MIMO Cylindrical DRA with Surface-Mounted Horn for Enhanced WLAN Conne", "status": "Published", "quartile": "Q1"}, {"year": 2025, "category": "Journal", "title": "Dual-Band Circularly-Polarized Antenna Forming Unit Configurations Featuring Polarization Selectivi", "status": "Published", "quartile": "Q1"}, {"year": 2025, "category": "Journal", "title": "Metasurface integrated dual polarized all textile antenna for WBAN application", "status": "Published", "quartile": "Q2"}, {"year": 2025, "category": "Conference", "title": "Electrically Thin Wideband Planar Antenna Array for mm-Wave Navigation in Autonomous UAV Systems", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Waveguide-to-Microstrip Antipodal End-Fire Antenna Design for mm-Wave Applications", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Reconfigurable Compact Antenna System with Gain Selectivity and Frequency Adaptability for Smartph", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Circularly Polarized Wideband CPW-Fed Reconfigurable Antenna for Multiband Applications", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "A Dual Port Dielectric Resonator Antenna for mm-Wave Application", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Dual-Band Wearable Antenna for WBAN Applications", "status": "Published", "quartile": "N/A"}], "Bablu Singh": [{"year": 2025, "category": "Journal", "title": "Spectrum optimization in 5G mobile communication using proposed SFeNB model and cognitive radio te", "status": "Published", "quartile": "Q2"}, {"year": 2024, "category": "Journal", "title": "Enhancing IoT connectivity through spectrum sharing in 5G networks", "status": "Published", "quartile": "Q2"}, {"year": 2025, "category": "Book Chapter", "title": "Application Perspectives of Digital Twin in Healthcare Using Metaverse\" in book titled \"Metaverse T", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Explainable Brain Tumor Classification using CNN and GradCAM", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Deep Learning-Based Automated Diagnosis and Classification of Rice Leaf Diseases Using CNN Architec", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Development of Multilayer IOT Enables Intrusion Detection System For Physical Objects", "status": "Published", "quartile": "N/A"}], "Deepak Sahu": [{"year": 2023, "category": "Journal", "title": "Deep learning based relay selection and precoders design for IoT cognitive relay networks", "status": "Published", "quartile": "Q2"}, {"year": 2025, "category": "Journal", "title": "Deep Learning-Assisted Relay Selection and Precoding in Energy-Centric MIMO Cognitive Networks", "status": "Unknown", "quartile": "Q1"}, {"year": 2025, "category": "Conference", "title": "Outage Performance of Cooperative NOMA-Inspired Overlay CR System with ISIC and ICSI", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Predictive Analytics for Stock Market Price Using LSTM Model", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "Evaluating Energy Efficiency in Two-Way MIMO CRNs: A Joint Approach to Relay Selection and Precoder", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Design and FPGA Implementation of CNN Accelerator with RISC-V for System-On-Chip", "status": "Accepted", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Robust Energy-Aware Precoding and Relay Selection for MIMO-Based Shared Spectrum Networks", "status": "Accepted", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "BER Analysis of ACO-OFDM, DCO-OFDM, and OOK in Indoor VLC: Impact of SNR, Responsivity, FoV and Q", "status": "Submitted", "quartile": "N/A"}], "Devlina Adihikari": [{"year": 2022, "category": "Conference", "title": "A Dynamic Spectrum Allocation Scheme to Limit the FWM Effects in Elastic Optical Networks", "status": "Published", "quartile": "N/A"}, {"year": 2022, "category": "Book Chapter", "title": "Chapter 18: Software for Optical Network Modelling", "status": "Published", "quartile": "N/A"}, {"year": 2023, "category": "Conference", "title": "Eye Health Monitoring System", "status": "Published", "quartile": "N/A"}, {"year": 2023, "category": "Conference", "title": "An intelligent cardiac arrest detection using boosting based classifier", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "Digital Twinning for Battery Systems: A Comprehensive Review", "status": "Accepted", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Weaving Intelligence into the Fabric of Light: AI and SDM", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Priority-Aware Resource Allocation Strategies for Space Division Multiplexing-enabled Elastic Optic", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Securing the Spatial Frontier: A Review of Threats and Defenses in SDM Optical Networks", "status": "Published", "quartile": "N/A"}], "Gaurav Bhargava": [{"year": 2025, "category": "Journal", "title": "APD\u2013SSPP: Enhancing Linearization of Power Amplifier Using Spoof Surface Plasmon Polariton Propagat", "status": "Published", "quartile": "Q3"}, {"year": 2025, "category": "Conference", "title": "A High-Efficiency Diplexer-Based Compact and Wideband Power Amplifier for 5G/6G Front-Ends", "status": "Accepted", "quartile": "N/A"}], "Gunjan Thakur": [{"year": 2024, "category": "Journal", "title": "Internet of things enabled rail-wheel contact temperature monitoring using fiber Bragg grating senso", "status": "Published", "quartile": "Q3"}, {"year": 2024, "category": "Conference", "title": "IoT based Soyabean Pest Classification using Transfer Learning and Explainable AI", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Journal", "title": "Predictive and Energy Aware Clustering in FANETs using Kalman Filter based Mobility Estimation", "status": "Submitted", "quartile": "Q2"}, {"year": 2025, "category": "Conference", "title": "Design of Energy Efficient 16-bit Reversible ALU for Low Power IoT Applications", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Design of Optimized Carry Select Adder (OCSA) for Low-Power IoT Applications", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Real-Time American Sign Language to Text and Speech Conversion Using Keypoint-Based Hand Gesture Re", "status": "Accepted", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "IoT based wearable device for assisting Autism Spectrum Disorder (ASD) patients", "status": "Accepted", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "TinyML-Based Framework for Indoor Plant Classification and Microclimate Monitoring", "status": "Accepted", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Design of Energy Efficient Carry Select Adder for Low-Power IoT Applications", "status": "Accepted", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Optimized NAND-Based Full Adder for Low-Power IoT Applications", "status": "Accepted", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Design and FPGA Implementation of CNN Accelerator with RISC-V for System-On-Chip", "status": "Accepted", "quartile": "N/A"}], "Kamal Garg": [{"year": 2024, "category": "Journal", "title": "Hybrid RF-VLC Communication System: Performance Analysis and Deep Learning Detection in the Presenc", "status": "Published", "quartile": "Q1"}, {"year": 2024, "category": "Journal", "title": "On the capacity of a SIM-based cooperative NLOS UVC system with best relay selection", "status": "Published", "quartile": "Q1"}], "Jigar Kumar Shah": [{"year": 2025, "category": "Journal", "title": "Enhanced Aiot Multi-Modal Fusion for Human Activity Recognition in Ambient Assisted Living Environme", "status": "Unknown", "quartile": "N/A"}, {"year": 2024, "category": "Journal", "title": "Patterns in the Chaos: The Moving Hurst Indicator and Its Role in Indian Market Volatility", "status": "Unknown", "quartile": "N/A"}, {"year": 2022, "category": "Journal", "title": "Towards enhancing the health standards of elderly: role of ambient sensors and user perspective", "status": "Unknown", "quartile": "N/A"}, {"year": 2022, "category": "Journal", "title": "Artificial intelligence framework for MSME sectors with focus on design and manufacturing industrie", "status": "Unknown", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Predictive Analytics for Stock Market Price Using LSTM Model", "status": "Unknown", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Detecting Deepfake Images with Enhanced Generative Adversarial Networks", "status": "Unknown", "quartile": "N/A"}, {"year": 2023, "category": "Conference", "title": "Real-time Text Recognition and Text-to-Speech Processing System for Visually Impaired", "status": "Unknown", "quartile": "N/A"}, {"year": 2023, "category": "Conference", "title": "Investigation of Machine Learning Models for Human Activity Recognition: A Comparative Study", "status": "Unknown", "quartile": "N/A"}, {"year": 2022, "category": "Conference", "title": "A novel Approach for Enhanced Data Security using Steganography and Cryptography", "status": "Unknown", "quartile": "N/A"}, {"year": 2022, "category": "Conference", "title": "Multi-mode real time human gait analysis system", "status": "Unknown", "quartile": "N/A"}, {"year": 2022, "category": "Conference", "title": "Fault Diagnosis of Rotating Machines using ML Techniques", "status": "Unknown", "quartile": "N/A"}, {"year": 2023, "category": "Conference", "title": "Gender Classification Based on Facial Features using Improved VGG-16 Deep Learning Model", "status": "Unknown", "quartile": "N/A"}, {"year": 2017, "category": "Conference", "title": "Prediction of Remaining Useful Life of Lithium-Ion Batteries", "status": "Unknown", "quartile": "N/A"}], "Mahesh Kumar": [{"year": 2024, "category": "Journal", "title": "Structural analysis of paper substrate for flexible microfluidics device application", "status": "Unknown", "quartile": "N/A"}, {"year": 2024, "category": "Journal", "title": "Optimization of Newtonian fluid pressure in microcantilever integrated flexible microfluidic channe", "status": "Unknown", "quartile": "N/A"}], "Pradip Barik": [{"year": 2022, "category": "Conference", "title": "SVM-D: Efficient SHVC Video Multicast through D2D Offloading over 5G Cellular Networks", "status": "Published", "quartile": "Q1"}, {"year": 2022, "category": "Conference", "title": "CoRAL: Coordinated Resource Allocation for Intercell D2D Communication in Cellular Networks", "status": "Published", "quartile": "Q1"}, {"year": 2022, "category": "Conference", "title": "UAV-Assisted Surveillance Using Machine Learning", "status": "Published", "quartile": "Q3"}, {"year": 2022, "category": "Journal", "title": "Cloud-based framework for performing digital forensic investigations", "status": "Published", "quartile": "Q2"}, {"year": 2023, "category": "Journal", "title": "D2D-assisted user-centric adaptive video transmission in next generation cellular networks", "status": "Published", "quartile": "Q1"}, {"year": 2023, "category": "Book Chapter", "title": "Social aspects of D2D communications in IoT for 5G and beyond cellular networks", "status": "Published", "quartile": "Q3"}, {"year": 2023, "category": "Conference", "title": "RealD3: A Real-time Driver Drowsiness Detection Scheme Using Machine Learning", "status": "Published", "quartile": "Q1"}, {"year": 2023, "category": "Conference", "title": "Density-Based Automatic Traffic Control Using Machine Learning", "status": "Published", "quartile": "Q4"}, {"year": 2023, "category": "Conference", "title": "FL-Based Intrusion Detection System for IoT Networks: Addressing Non-IID Data and Concept Drift", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Journal", "title": "Federated Learning-Based Intrusion Detection System for Addressing Non-IID Data in IoT Environment", "status": "Published", "quartile": "Q1"}, {"year": 2024, "category": "Conference", "title": "Adaptive Video Transmission with AI-Driven Content Delivery in D2D Networks", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "Blockchain-Based Decentralized Framework for Secure Sharing of Electronic Health Records", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "Federated Learning for Intrusion Detection in IoT: Addressing Data Heterogeneity", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Journal", "title": "D2D Offloading-Based Scalable Video Multicast with Joint Rate Control and UAV-Enhanced Coverage", "status": "Published", "quartile": "Q1"}, {"year": 2025, "category": "Journal", "title": "Federated Learning-Based Intrusion Detection for IoT Networks", "status": "Submitted", "quartile": "Q2"}, {"year": 2025, "category": "Conference", "title": "Hierarchical Federated Learning for Distributed Intrusion Detection in 6G IoT Networks", "status": "Accepted", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Privacy-Preserving Federated Learning for Intrusion Detection Across Heterogeneous IoT Devices", "status": "Accepted", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Adaptive Content Delivery in D2D Networks Using Reinforcement Learning", "status": "Accepted", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "AI-Driven Scalable Video Streaming in UAV-Assisted D2D Networks", "status": "Accepted", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Edge Intelligence for Real-Time Intrusion Detection in 6G IoT Ecosystems", "status": "Accepted", "quartile": "N/A"}], "Prashant Dwivedi": [{"year": 2025, "category": "Book Chapter", "title": "Modulation and Diversity in Cooperative VLC: Trade-offs and Optimizations for System Design", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Journal", "title": "Performance Analysis of Cooperative VLC With L-PPM Modulation and Diversity Combining Strategies Un", "status": "Published", "quartile": "Q1"}, {"year": 2025, "category": "Journal", "title": "P-NU-NOMA VLC Systems: Performance Under Imperfect SIC and CSI", "status": "Published", "quartile": "Q3"}, {"year": 2025, "category": "Conference", "title": "Enhancing Visible Light Communication: SIMO-VLC with Zero-Forcing Receiver and Equal Gain Diversity", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Advancing Communication for the Hearing Impaired: Real-Time Sign Language Recognition and Translat", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "ML-Driven Real-Time Emotion and Stress Level Monitoring", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "Leveraging U-Net for Efficient Blood Cell Segmentation and Classification", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Journal", "title": "BEP analysis of L-PPM modulated cooperative VLC system with perfect and imperfect CSI", "status": "Published", "quartile": "Q2"}, {"year": 2024, "category": "Conference", "title": "Performance Analysis of an Uplink NOMA based mMIMO System with Imperfect SIC", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "Performance Study of VLC with NU-NOMA: Effect of Imperfect SIC", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "PAPR Reduction in OFDM-VLC using SLM Technique", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "SWIPT-Powered NOMA-VLC with User Fairness: A Unified Rate-Energy Analysis", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "Deep learning for VLC Channel Estimation: A Survey of Techniques and Performance", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "Advances in Optical Wireless Communication: Channel Modeling and Performance", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "BER Performance of NOMA-VLC System: Effect of Imperfect CSI", "status": "Published", "quartile": "N/A"}, {"year": 2023, "category": "Journal", "title": "SEP Analysis of NOMA-VLC Systems with User Mobility", "status": "Published", "quartile": "Q2"}, {"year": 2023, "category": "Journal", "title": "Performance Analysis of VLC System with L-PPM Modulation over Lognormal Turbulence Channel", "status": "Published", "quartile": "Q2"}, {"year": 2023, "category": "Conference", "title": "Performance analysis of VLC with OOK modulation over the Turbulent Channel", "status": "Published", "quartile": "N/A"}, {"year": 2023, "category": "Conference", "title": "Performance of NOMA-VLC System with Fractional User Allocation Scheme", "status": "Published", "quartile": "N/A"}, {"year": 2022, "category": "Journal", "title": "Performance of cooperative NOMA visible light communication system", "status": "Published", "quartile": "Q2"}, {"year": 2022, "category": "Journal", "title": "SEP analysis of non-orthogonal multiple access enabled VLC system", "status": "Published", "quartile": "Q2"}, {"year": 2022, "category": "Journal", "title": "Secrecy performance of cooperative NOMA VLC system with AF and DF relaying", "status": "Published", "quartile": "Q2"}, {"year": 2022, "category": "Conference", "title": "Outage Analysis of NOMA-VLC with Imperfect SIC", "status": "Published", "quartile": "N/A"}, {"year": 2022, "category": "Conference", "title": "Rate Analysis of Non-Orthogonal Multiple Access Based Visible Light Communication System", "status": "Published", "quartile": "N/A"}, {"year": 2022, "category": "Conference", "title": "Coverage Probability Analysis of NOMA-Based Hybrid RF/VLC System", "status": "Published", "quartile": "N/A"}, {"year": 2022, "category": "Conference", "title": "SER Analysis of Dual-hop Cooperative NOMA-VLC System", "status": "Published", "quartile": "N/A"}, {"year": 2022, "category": "Conference", "title": "Outage Analysis of Full-Duplex NOMA Visible Light Communication System", "status": "Published", "quartile": "N/A"}, {"year": 2022, "category": "Conference", "title": "Performance Analysis of Differential Chaos Shift Keying VLC System", "status": "Published", "quartile": "N/A"}, {"year": 2017, "category": "Journal", "title": "BEP analysis of cooperative visible light communication system", "status": "Published", "quartile": "Q3"}, {"year": 2017, "category": "Journal", "title": "Coverage probability analysis of cooperative visible light communication system", "status": "Published", "quartile": "Q3"}, {"year": 2017, "category": "Journal", "title": "Performance analysis of non-orthogonal multiple access for VLC system", "status": "Published", "quartile": "Q3"}, {"year": 2017, "category": "Conference", "title": "Outage analysis of cooperative NOMA visible light communication system", "status": "Published", "quartile": "N/A"}, {"year": 2017, "category": "Conference", "title": "Performance analysis of NOMA aided cooperative VLC system with DF relaying", "status": "Published", "quartile": "N/A"}, {"year": 2017, "category": "Conference", "title": "Performance analysis of MIMO VLC system over different modulation techniques", "status": "Published", "quartile": "N/A"}], "Rashmi Bhattad": [{"year": 2025, "category": "Journal", "title": "Land Cover Change Detection for Remote Sensning Images", "status": "Submitted", "quartile": "Q2"}, {"year": 2025, "category": "Conference", "title": "Conditional gan-based semantic change detection in satellite imagery", "status": "Accepted", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "A comparative study of u-net architectures for change detection in satellite images", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Siamese networks for change detection in remote sensing: A comprehensive review", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "Implications of batch normalization and dropout on land cover categories in remote sensing", "status": "Published", "quartile": "N/A"}], "Santosh Sattapathy": [{"year": 2022, "category": "Conference", "title": "Automated Sleep Staging Classification System Based on CNN Using Polysomnography Signals", "status": "Published", "quartile": "N/A"}, {"year": 2022, "category": "Book Chapter", "title": "Automated Classification of Sleep Stages Using Single-Channel EEG Signal: A Machine Learning-Based", "status": "Published", "quartile": "N/A"}, {"year": 2022, "category": "Conference", "title": "An Automated Car Price Prediction System Using Effective Machine Learning Techniques", "status": "Published", "quartile": "N/A"}, {"year": 2022, "category": "Conference", "title": "AutoSleepNet: A Multi-Signal Framework for Automated Sleep Stage Classification", "status": "Published", "quartile": "N/A"}, {"year": 2022, "category": "Conference", "title": "An Effective EEG Signal-Based Sleep Staging System using Machine Learning Techniques", "status": "Published", "quartile": "N/A"}, {"year": 2022, "category": "Conference", "title": "On Stochastic Modeling of Robustness Parameter for Resilience Communications in Vehicle Platoons", "status": "Published", "quartile": "N/A"}, {"year": 2022, "category": "Conference", "title": "An Automated System for Sleep Staging using EEG Brain Signals Based on ML Approach", "status": "Published", "quartile": "N/A"}, {"year": 2023, "category": "Book Chapter", "title": "Automatic Breast Cancer Detection with Mammography Using Deep Learning Algorithm", "status": "Published", "quartile": "N/A"}, {"year": 2023, "category": "Conference", "title": "Exploring Machine Learning Approaches for Automated Sleep Stage Classification Using PSG Signals", "status": "Published", "quartile": "N/A"}, {"year": 2023, "category": "Conference", "title": "Enhancing EEG-Based Sleep Stage Classification with Machine Learning Techniques", "status": "Published", "quartile": "N/A"}, {"year": 2023, "category": "Conference", "title": "Automated Detection of Parkinson\u2019s Disease from EEG Signals Using Machine Learning", "status": "Published", "quartile": "N/A"}, {"year": 2023, "category": "Conference", "title": "Deep Convolutional Neural Network for Multi-class Classification of Motor Imagery from EEG Signals", "status": "Published", "quartile": "N/A"}, {"year": 2023, "category": "Conference", "title": "ML-Based Sleep Stage Classification Using Multi-Channel EEG and EOG Signals", "status": "Published", "quartile": "N/A"}, {"year": 2023, "category": "Conference", "title": "Platoon Communications with IEEE 802.11p: BSM Transmission Analysis", "status": "Published", "quartile": "N/A"}, {"year": 2023, "category": "Journal", "title": "Automated Sleep Stage Classification Using an Optimized Deep Learning Model Based on EEG Signal", "status": "Published", "quartile": "Q1"}, {"year": 2023, "category": "Journal", "title": "Automatic Identification of Epileptic Seizures from EEG Signals Using Deep Neural Network", "status": "Published", "quartile": "Q1"}, {"year": 2023, "category": "Journal", "title": "Detection of Parkinson's Disease from EEG Signals using Wavelet Transform", "status": "Published", "quartile": "Q2"}, {"year": 2024, "category": "Journal", "title": "Automated EEG-based Sleep Stage Classification Using Deep Learning Model", "status": "Published", "quartile": "Q1"}, {"year": 2024, "category": "Journal", "title": "Automated EEG-Based Epilepsy Detection Using Deep Learning", "status": "Published", "quartile": "Q2"}, {"year": 2024, "category": "Conference", "title": "Deep Reinforcement Learning Based Intelligent Approach to Channel Allocation for Effective Communic", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "Assessment of a Novel Single-Channel EEG Method for Automated Recognition of Sleep Phases", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "Enhancing EEG-Based Sleep Stage Prediction Using Machine Learning Techniques", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "An Explainable Machine Learning Approach for Multi-class Sleep Stage Identification from EEG Signal", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "Deep Learning for Breast Cancer Detection from Mammography Images", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "Platoon Vehicle Communications with IEEE 802.11p on Expressways", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Journal", "title": "Automated Detection of Alzheimer's Disease Using EEG Signals and Deep Learning", "status": "Published", "quartile": "Q1"}, {"year": 2025, "category": "Journal", "title": "EEG-Based Emotion Recognition Using Deep Learning", "status": "Published", "quartile": "Q2"}, {"year": 2025, "category": "Conference", "title": "EEG-Based Cognitive Load Estimation Using Machine Learning", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Deep Learning for Automated EEG-Based Mental Health Assessment", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Vehicle Platoon Dynamics: Communication Reliability Analysis", "status": "Published", "quartile": "N/A"}], "Vivek Pandit": [{"year": 2025, "category": "Conference", "title": "A Wide-Band Directional Bow-Tie Slot Antenna with Overlapped Slots Using AMC Tapered Geometry for I", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "A Wide-Band Directional Bow-Tie Slot Antenna with Overlapped Slots Using AMC Tapered Geometry for I", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "A CPW-Fed Dual-Band Bow-Tie Slot Antenna with Integrated SRRs for Wireless Communication", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "Two-Port Elliptical Shaped Monopole MIMO Antenna Array with High Isolation using DGS Technique", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "A CPW-Fed Triple band Slot Antenna with symmetrical Stubs for WLAN/WiMAX Applications", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "Isolation enhancement in fractral inspired MIMO antenna using DGS for 5G application", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "Dual-band E-textile artificial magnetic conductor", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "A Dual-Band Wide-Band Modified CPW-Fed Bow Tie Radial Slot Antenna with Rectangular Stubs", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "A Wide-Band Directional Bow-Tie Slot Antenna Design with AMC Geometry", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "Compact MIMO Antenna Design for Sub-6 GHz 5G Applications", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "Wideband Slot Antenna with Enhanced Radiation for mm-Wave Applications", "status": "Published", "quartile": "N/A"}], "Shivangi Mehta": [{"year": 2025, "category": "Journal", "title": "Feature importance for malware detection in PE datasets: Impact assessment and comparative evaluati", "status": "Submitted", "quartile": "Q2"}, {"year": 2025, "category": "Conference", "title": "NO2 Data Infilling for Cloud-Occluded Satellite Imagery Using a Random Forest Approach", "status": "Accepted", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "A Comprehensive Model for Cognitive Stress Detection for College Students", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Enhanced Automated Brain Tumour Detection Using Convolutional Neural Networks", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "Gesture Recognition and Interpretation through Wearable Sensors and Recurrent Neural Networks", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "Anticipating Threats through Malware Detection Approaches to safeguard Data Privacy and Security: A", "status": "Published", "quartile": "N/A"}], "Aarti Solanki": [{"year": 2025, "category": "Conference", "title": "Gesture-Driven Laptop Control with AI-Powered Background Noise Analysis", "status": "Published", "quartile": "N/A"}], "Ritesh Vyas": [{"year": 2025, "category": "Journal", "title": "Demonstrable and Anatomy-driven Knuckle Identification via Crease Map Segmentation", "status": "Published", "quartile": "Q2"}, {"year": 2024, "category": "Journal", "title": "Introduction to Special Issue on Recent trends in Multimedia Forensics", "status": "Published", "quartile": "Q1"}, {"year": 2023, "category": "Journal", "title": "An Efficient Approach for Recognition of Motor Imagery EEG Signals using the Fourier Decomposition", "status": "Published", "quartile": "Q1"}, {"year": 2024, "category": "Journal", "title": "Deep orientated distance-transform network for geometric-aware centerline detection", "status": "Published", "quartile": "Q1"}, {"year": 2024, "category": "Journal", "title": "Anisotropic Differential concavity codes for Palmprint Representation", "status": "Published", "quartile": "Q2"}, {"year": 2023, "category": "Journal", "title": "Palmprint representation through combined differential concavity and infirmity codes", "status": "Published", "quartile": "Q3"}, {"year": 2023, "category": "Journal", "title": "Recent trends in EEG based Motor Imagery Signal Analysis and Recognition: A comprehensive review", "status": "Published", "quartile": "Q1"}, {"year": 2023, "category": "Journal", "title": "Holistic Knuckle Recognition through Adept Texture Representation", "status": "Published", "quartile": "Q3"}, {"year": 2024, "category": "Journal", "title": "Biometric Recognition Using Finger Knuckle Print: A Comprehensive Survey", "status": "Published", "quartile": "Q1"}, {"year": 2024, "category": "Journal", "title": "Contactless Fingerprint Recognition: A Deep Learning Approach", "status": "Published", "quartile": "Q2"}, {"year": 2024, "category": "Journal", "title": "EEG Signal Classification for Mental Health Monitoring", "status": "Published", "quartile": "Q2"}, {"year": 2025, "category": "Journal", "title": "Deep Learning for Palmprint Verification", "status": "Published", "quartile": "Q1"}, {"year": 2023, "category": "Conference", "title": "Finger Knuckle Recognition Using Texture Features", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "Contactless Fingerprint Recognition Using CNN", "status": "Published", "quartile": "N/A"}, {"year": 2024, "category": "Conference", "title": "Palmprint Identification Using Deep Features", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Multi-modal Biometric Fusion for Authentication", "status": "Published", "quartile": "N/A"}, {"year": 2025, "category": "Conference", "title": "Knuckle-Based Authentication in Mobile Devices", "status": "Published", "quartile": "N/A"}]};
+
+// ── Helpers ──
+const COLORS = ['#4f8ef7','#3ddbbe','#f7c35c','#7c5cf7','#f75c7c','#5cf7a2','#f7a25c'];
+const CAT_COLORS = {Journal:'#3ddbbe', Conference:'#4f8ef7', 'Book Chapter':'#f7c35c'};
+const Q_COLORS = {Q1:'#3ddbbe',Q2:'#4f8ef7',Q3:'#f7c35c',Q4:'#f75c7c'};
+
+function allPubs() {
+  const out = [];
+  for (const [name, pubs] of Object.entries(DATA)) {
+    pubs.forEach(p => out.push({...p, faculty: name}));
+  }
+  return out;
+}
+
+function facultySorted() {
+  return Object.entries(DATA)
+    .map(([name, pubs]) => ({name, pubs, total: pubs.length}))
+    .sort((a,b) => b.total - a.total);
+}
+
+// ── Charts ──
+function initCharts() {
+  const chartDefaults = {
+    plugins: {legend: {display: false}, tooltip: {
+      backgroundColor: '#1a1e2e', borderColor: '#333', borderWidth: 1,
+      titleColor: '#e8eaf2', bodyColor: '#7a7f9a', padding: 10
+    }},
+    scales: {x: {display: false}, y: {display: false}}
+  };
+
+  // Category donut
+  new Chart(document.getElementById('catChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Conference','Journal','Book Chapter'],
+      datasets: [{data:[147,68,11], backgroundColor:['#4f8ef7','#3ddbbe','#f7c35c'], borderWidth:0, hoverOffset:6}]
+    },
+    options: {
+      cutout: '70%', plugins: {legend:{display:false}, tooltip: chartDefaults.plugins.tooltip},
+      animation: {animateRotate: true, duration: 1000}
+    }
+  });
+
+  // Status donut
+  new Chart(document.getElementById('statusChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Published','Accepted','Submitted','Unknown'],
+      datasets: [{data:[179,18,7,22], backgroundColor:['#3ddbbe','#4f8ef7','#f7c35c','#444'], borderWidth:0, hoverOffset:6}]
+    },
+    options: {cutout:'70%', plugins:{legend:{display:false}, tooltip: chartDefaults.plugins.tooltip}, animation:{duration:1000}}
+  });
+
+  // Quartile donut
+  new Chart(document.getElementById('quartileChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Q1','Q2','Q3','Q4'],
+      datasets: [{data:[26,18,12,4], backgroundColor:['#3ddbbe','#4f8ef7','#f7c35c','#f75c7c'], borderWidth:0, hoverOffset:6}]
+    },
+    options: {cutout:'70%', plugins:{legend:{display:false}, tooltip: chartDefaults.plugins.tooltip}, animation:{duration:1000}}
+  });
+
+  // Year line chart
+  const years = [2016,2017,2019,2022,2023,2024,2025];
+  const yearCounts = {2016:2,2017:17,2019:1,2022:21,2023:43,2024:43,2025:99};
+  const journalByYear = {}, confByYear = {}, bookByYear = {};
+  allPubs().forEach(p => {
+    const y = p.year;
+    if (!years.includes(y)) return;
+    journalByYear[y] = (journalByYear[y]||0) + (p.category==='Journal'?1:0);
+    confByYear[y] = (confByYear[y]||0) + (p.category==='Conference'?1:0);
+    bookByYear[y] = (bookByYear[y]||0) + (p.category==='Book Chapter'?1:0);
+  });
+
+  new Chart(document.getElementById('yearChart'), {
+    type: 'line',
+    data: {
+      labels: years,
+      datasets: [
+        {label:'Total', data: years.map(y=>yearCounts[y]||0), borderColor:'#4f8ef7', backgroundColor:'rgba(79,142,247,.1)', tension:.4, fill:true, pointBackgroundColor:'#4f8ef7', pointRadius:4},
+        {label:'Journal', data: years.map(y=>journalByYear[y]||0), borderColor:'#3ddbbe', backgroundColor:'transparent', tension:.4, pointBackgroundColor:'#3ddbbe', pointRadius:3},
+        {label:'Conference', data: years.map(y=>confByYear[y]||0), borderColor:'#7c5cf7', backgroundColor:'transparent', tension:.4, pointBackgroundColor:'#7c5cf7', pointRadius:3},
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {legend:{display:true, labels:{color:'#7a7f9a', font:{size:11}}}, tooltip: chartDefaults.plugins.tooltip},
+      scales: {
+        x: {display:true, ticks:{color:'#7a7f9a', font:{size:11}}, grid:{color:'rgba(255,255,255,0.04)'}},
+        y: {display:true, ticks:{color:'#7a7f9a', font:{size:11}}, grid:{color:'rgba(255,255,255,0.04)'}, beginAtZero:true}
+      }
+    }
+  });
+
+  // Stacked bar
+  new Chart(document.getElementById('stackedChart'), {
+    type: 'bar',
+    data: {
+      labels: years,
+      datasets: [
+        {label:'Journal', data: years.map(y=>journalByYear[y]||0), backgroundColor:'#3ddbbe', borderRadius:4},
+        {label:'Conference', data: years.map(y=>confByYear[y]||0), backgroundColor:'#4f8ef7', borderRadius:4},
+        {label:'Book Chapter', data: years.map(y=>bookByYear[y]||0), backgroundColor:'#f7c35c', borderRadius:4},
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: {legend:{display:true, labels:{color:'#7a7f9a', font:{size:11}}}, tooltip: chartDefaults.plugins.tooltip},
+      scales: {
+        x: {display:true, stacked:true, ticks:{color:'#7a7f9a'}, grid:{color:'rgba(255,255,255,0.04)'}},
+        y: {display:true, stacked:true, ticks:{color:'#7a7f9a'}, grid:{color:'rgba(255,255,255,0.04)'},beginAtZero:true}
+      }
+    }
+  });
+}
+
+// ── Top Faculty Bar ──
+function renderTopFacultyBar() {
+  const top10 = facultySorted().slice(0, 10);
+  const max = top10[0].total;
+  const container = document.getElementById('topFacultyBar');
+  container.innerHTML = top10.map((f,i) => `
+    <div class="bar-row">
+      <div class="bar-label" title="${f.name}">${f.name.split(' ')[0]} ${f.name.split(' ').slice(-1)[0]}</div>
+      <div class="bar-track">
+        <div class="bar-fill" style="width:${(f.total/max*100)}%;background:${COLORS[i%COLORS.length]}"></div>
+      </div>
+      <div class="bar-num">${f.total}</div>
+    </div>
+  `).join('');
+}
+
+// ── Ranking Table ──
+function renderRankingTable() {
+  const tbody = document.getElementById('rankingTable');
+  const sorted = facultySorted();
+  tbody.innerHTML = sorted.map((f,i) => {
+    const j = f.pubs.filter(p=>p.category==='Journal').length;
+    const c = f.pubs.filter(p=>p.category==='Conference').length;
+    const b = f.pubs.filter(p=>p.category==='Book Chapter').length;
+    const q = f.pubs.filter(p=>p.quartile==='Q1'||p.quartile==='Q2').length;
+    const rankColor = i===0?'#f7c35c':i===1?'#aaa':i===2?'#cd7f32':'';
+    return `<tr onclick="openModal('${f.name}')" style="cursor:pointer">
+      <td class="rank" style="color:${rankColor||'var(--muted)'}">${i+1}</td>
+      <td class="name">${f.name}</td>
+      <td class="count" style="color:#4f8ef7">${f.total}</td>
+      <td>${j}</td>
+      <td>${c}</td>
+      <td>${b}</td>
+      <td><span class="q-badge q${q>0?'1':'4'}" style="background:rgba(61,219,190,.1);color:#3ddbbe">${q}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Year Table ──
+function renderYearTable() {
+  const years = [2016,2017,2019,2022,2023,2024,2025];
+  const pubs = allPubs();
+  const data = years.map(y => ({
+    y, total: pubs.filter(p=>p.year===y).length,
+    j: pubs.filter(p=>p.year===y&&p.category==='Journal').length,
+    c: pubs.filter(p=>p.year===y&&p.category==='Conference').length,
+    b: pubs.filter(p=>p.year===y&&p.category==='Book Chapter').length,
+  }));
+  const tbody = document.getElementById('yearTable');
+  tbody.innerHTML = data.map((d,i) => {
+    const prev = i > 0 ? data[i-1].total : null;
+    const growth = prev !== null ? ((d.total - prev)/prev*100).toFixed(0) : '—';
+    const growthColor = prev === null ? '' : d.total >= prev ? '#3ddbbe' : '#f75c7c';
+    const arrow = prev === null ? '' : d.total >= prev ? '↑' : '↓';
+    return `<tr>
+      <td style="font-weight:700;font-family:'Syne',sans-serif">${d.y}</td>
+      <td style="color:#4f8ef7;font-weight:600">${d.total}</td>
+      <td>${d.j}</td><td>${d.c}</td><td>${d.b}</td>
+      <td style="color:${growthColor};font-weight:600">${arrow} ${prev!==null?growth+'%':'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Faculty Grid ──
+function renderFacultyGrid() {
+  const grid = document.getElementById('facultyGrid');
+  const sorted = facultySorted();
+  const maxTotal = sorted[0].total;
+  grid.innerHTML = sorted.map(f => {
+    const j = f.pubs.filter(p=>p.category==='Journal').length;
+    const c = f.pubs.filter(p=>p.category==='Conference').length;
+    const b = f.pubs.filter(p=>p.category==='Book Chapter').length;
+    return `<div class="faculty-card" onclick="openModal('${f.name}')">
+      <div class="fc-name">${f.name}</div>
+      <div class="fc-count">${f.total} publications</div>
+      <div class="fc-bars">
+        <div class="fc-bar-row">
+          <div class="fc-bar-label">Journal</div>
+          <div class="fc-bar-track"><div class="fc-bar-fill" style="width:${j/maxTotal*100}%;background:#3ddbbe"></div></div>
+          <div class="fc-bar-num">${j}</div>
+        </div>
+        <div class="fc-bar-row">
+          <div class="fc-bar-label">Conference</div>
+          <div class="fc-bar-track"><div class="fc-bar-fill" style="width:${c/maxTotal*100}%;background:#4f8ef7"></div></div>
+          <div class="fc-bar-num">${c}</div>
+        </div>
+        <div class="fc-bar-row">
+          <div class="fc-bar-label">Book Chapter</div>
+          <div class="fc-bar-track"><div class="fc-bar-fill" style="width:${b/maxTotal*100}%;background:#f7c35c"></div></div>
+          <div class="fc-bar-num">${b}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Publication Table ──
+function renderPubTable() {
+  const fFilter = document.getElementById('filterFaculty').value;
+  const yFilter = document.getElementById('filterYear').value;
+  const cFilter = document.getElementById('filterCat').value;
+  const qFilter = document.getElementById('filterQ').value;
+
+  let pubs = allPubs();
+  if (fFilter) pubs = pubs.filter(p=>p.faculty===fFilter);
+  if (yFilter) pubs = pubs.filter(p=>p.year==yFilter);
+  if (cFilter) pubs = pubs.filter(p=>p.category===cFilter);
+  if (qFilter) pubs = pubs.filter(p=>p.quartile===qFilter);
+
+  document.getElementById('pubCount').textContent = `${pubs.length} publications`;
+
+  const tbody = document.getElementById('pubTable');
+  tbody.innerHTML = pubs.map(p => {
+    const catClass = {Journal:'cat-j',Conference:'cat-c','Book Chapter':'cat-b'}[p.category]||'cat-j';
+    const sClass = {Published:'s-pub',Accepted:'s-acc',Submitted:'s-sub'}[p.status]||'';
+    const qBadge = ['Q1','Q2','Q3','Q4'].includes(p.quartile)
+      ? `<span class="q-badge q${p.quartile[1]}">${p.quartile}</span>` : '—';
+    return `<tr>
+      <td style="max-width:380px;font-size:12px;line-height:1.5">${p.title}</td>
+      <td style="font-size:12px;white-space:nowrap">${p.faculty}</td>
+      <td style="font-weight:600;color:var(--muted)">${p.year}</td>
+      <td><span class="cat-badge ${catClass}">${p.category}</span></td>
+      <td><span class="status-badge ${sClass}">${p.status}</span></td>
+      <td>${qBadge}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Filters ──
+function initFilters() {
+  const facSel = document.getElementById('filterFaculty');
+  Object.keys(DATA).sort().forEach(n => {
+    const opt = document.createElement('option');
+    opt.value = n; opt.textContent = n;
+    facSel.appendChild(opt);
+  });
+  const yrSel = document.getElementById('filterYear');
+  [2016,2017,2019,2022,2023,2024,2025].forEach(y => {
+    const opt = document.createElement('option');
+    opt.value = y; opt.textContent = y;
+    yrSel.appendChild(opt);
+  });
+}
+
+// ── Modal ──
+function openModal(name) {
+  const pubs = DATA[name];
+  document.getElementById('modal-name').textContent = name;
+  document.getElementById('modal-sub').textContent = `${pubs.length} total publications`;
+  const listEl = document.getElementById('modal-pubs');
+  listEl.innerHTML = pubs.map(p => {
+    const catClass = {Journal:'cat-j',Conference:'cat-c','Book Chapter':'cat-b'}[p.category]||'cat-j';
+    const qBadge = ['Q1','Q2','Q3','Q4'].includes(p.quartile) ? `<span class="q-badge q${p.quartile[1]}">${p.quartile}</span>` : '';
+    return `<div class="pub-item">
+      <div class="pub-title">${p.title}</div>
+      <div class="pub-meta">
+        <span class="pub-year">${p.year}</span>
+        <span class="cat-badge ${catClass}">${p.category}</span>
+        ${qBadge}
+      </div>
+    </div>`;
+  }).join('');
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+document.getElementById('modal').addEventListener('click', e => { if(e.target===e.currentTarget) closeModal(); });
+
+// ── Tab Navigation ──
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+// ── Init ──
+initCharts();
+renderTopFacultyBar();
+renderRankingTable();
+renderYearTable();
+renderFacultyGrid();
+initFilters();
+renderPubTable();
+</script>
+</body>
+</html>
